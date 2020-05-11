@@ -139,62 +139,86 @@ void setup()
   lcd.setCursor(0, 1);
   lcd.print("and Distance");
   delay(2000);
+  t_old = millis();
 }
 
 float v0, v, d0, d, t1, mag_a, sum_a; //Declare variables
 int k; //for counting when to report distance traveled
+unsigned long t_now,  t_old;
+float dt;
+float vx = 0, vy = 0, vz = 0;
+float x = 0, y = 0, z = 0;
 
 void loop()
 {
   // Update the sensor values whenever new data is available
-  if ( imu.gyroAvailable() )
-  {
-    // To read from the gyroscope,  first call the
-    // readGyro() function. When it exits, it'll update the
-    // gx, gy, and gz variables with the most current data.
-    imu.readGyro();
-  }
+  //if ( imu.gyroAvailable() )
+  //{
+  // To read from the gyroscope,  first call the
+  // readGyro() function. When it exits, it'll update the
+  // gx, gy, and gz variables with the most current data.
+  // imu.readGyro();
+  //}
   if ( imu.accelAvailable() )
   {
     // To read from the accelerometer, first call the
     // readAccel() function. When it exits, it'll update the
     // ax, ay, and az variables with the most current data.
     imu.readAccel();
-  }
-  if ( imu.magAvailable() )
-  {
+    t_now = millis(); 
+    // time delay since the last acceleration measurement 
+    dt = (float)(t_now - t_old)*0.001; // convert to seconds
+
+    //if ( imu.magAvailable() )
+    //{
     // To read from the magnetometer, first call the
     // readMag() function. When it exits, it'll update the
     // mx, my, and mz variables with the most current data.
-    imu.readMag();
+    //  imu.readMag();
+    //}
+    //    v0 = v; //make last interval velocity new initial velocity in calculations
+    //    d0 = d; //make last distance value new initial distance value in calculations
+    g = 9.8;
+    float ax = g * imu.calcAccel(imu.ax);
+    float ay = g * imu.calcAccel(imu.ay);
+    // this assumes that Z is always vertical - sensor doesn't tumble
+    // tumble could be tracked with the gyro
+    float az = g * (imu.calcAccel(imu.az) - 1.0); 
+    vx += ax * dt;
+    vy += ay * dt;
+    vz += az * dt;
+
+    x += vx * dt + 0.5 * ax * dt * dt;
+    y += vy * dt + 0.5 * ay * dt * dt;
+    z += vz * dt + 0.5 * az * dt * dt;
+    Serial.print("New location is: ");
+    Serial.println(x);
+    Serial.println(y);
+    Serial.println(z);
+
+    /* sum_a = az1 + ax1 + ay1;
+      mag_a = (sqrt(ax1 * ax1 + ay1 * ay1 + az1 * az1) - 0.024) * 9.8; //Magnitude in m/s^2
+      if (mag_a < 2.0) mag_a = 0; //if acceleration is too small, change acceleration to zero since stationary
+      if (sum_a < 0) mag_a = mag_a * -1; //if acceleration is in negative direction, make acceleration negative for de-acceleration
+      t1 = 0.5; //0.5 second approximation between readings
+      v = mag_a * t1 + v0; //Calculate speed in m/s
+      if (v < 0) v = 0; //Sorry. Can't  drive reverse for long periods in this program.
+      d = d0 + v0 * t1 + 0.5 * mag_a * t1 * t1; //Calculate distance traveled in meters
+      if (d < 0) d = 0; // ensure distance can't be negative. Non directional metrics.
+    */
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Vel (m/s)");
+    lcd.setCursor(11, 0);
+    lcd.print(v);
+    lcd.setCursor(0, 1);
+    lcd.print("Dist (m)");
+    lcd.setCursor(11, 1);
+    lcd.print(d);
+    delay(500);
+    /* used as a basic time metric in calculations. Although this will add some uncertainty due to the
+       amount of time calculations take, this will still give a rough idea of the time intervals between
+       each reading to use in the calculations.
+    */
   }
-  v0 = v; //make last interval velocity new initial velocity in calculations
-  d0 = d; //make last distance value new initial distance value in calculations
-  float ax1 = imu.calcAccel(imu.ax) - 0.14;
-  float ay1 = imu.calcAccel(imu.ay);
-  float az1 = imu.calcAccel(imu.az) - 1.0;
-  sum_a = az1 + ax1 + ay1;
-  mag_a = (sqrt(ax1 * ax1 + ay1 * ay1 + az1 * az1) - 0.024) * 9.8; //Magnitude in m/s^2
-  if (mag_a < 2.0) mag_a = 0; //if acceleration is too small, change acceleration to zero since stationary
-  if (sum_a < 0) mag_a = mag_a * -1; //if acceleration is in negative direction, make acceleration negative for de-acceleration
-  t1 = 0.5; //0.5 second approximation between readings
-  v = mag_a * t1 + v0; //Calculate speed in m/s
-  if (v < 0) v = 0; //Sorry. Can't  drive reverse for long periods in this program.
-  d = d0 + v0 * t1 + 0.5 * mag_a * t1 * t1; //Calculate distance traveled in meters
-  if (d < 0) d = 0; // ensure distance can't be negative. Non directional metrics.
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Vel (m/s)");
-  lcd.setCursor(11, 0);
-  lcd.print(v);
-  lcd.setCursor(0, 1);
-  lcd.print("Dist (m)");
-  lcd.setCursor(11, 1);
-  lcd.print(d);
-  delay(500); 
-  /* used as a basic time metric in calculations. Although this will add some uncertainty due to the 
-   * amount of time calculations take, this will still give a rough idea of the time intervals between 
-   * each reading to use in the calculations.
-   */
-  
 }
